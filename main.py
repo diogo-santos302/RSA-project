@@ -1,11 +1,12 @@
+import socket
 import time
 import paho.mqtt.client as mqtt
-from scan_neighbours import scan_neighbours
-from neighbours import neighbours, lock
+from arp import get_connected_devices
 
 broker_address = "localhost"
 broker_port = 1883
 topic = "sensor"
+ip_range = "10.1.1.0/24"
 
 def publish_to_topic(pi_address: str, msg):
     pi_client = mqtt.Client()
@@ -13,20 +14,18 @@ def publish_to_topic(pi_address: str, msg):
     pi_client.publish(topic, msg.payload.decode())
     pi_client.disconnect()
 
-def publish_message_to_all_neighbours(neighbours: list, msg):
-    for pi_address in neighbours:
-        if pi_address != broker_address:
-            try:
-                publish_to_topic(pi_address, msg)
-            except socket.timeout:
-                print(f"Socket timeout occurred. Unable to establish connection or receive data with {pi_address}")
+def publish_message_to_all_neighbours(msg):
+    neighbours: list = get_connected_devices(ip_range, 1)
+    for ip_address in neighbours:
+        print(f"Relaying message to {ip_address}")
+        try:
+            publish_to_topic(ip_address, msg)
+        except socket.timeout:
+            print(f"Socket timeout occurred. Unable to establish connection or receive data with {ip_address}")
 
 def on_message(client, userdata, msg):
     print("Received MQTT message: ", msg.payload.decode())
-    temp_neighbours = []
-    with lock:
-        temp_neighbours[:] = neighbours
-    publish_message_to_all_neighbours(temp_neighbours, msg)
+    publish_message_to_all_neighbours(msg)
     
 def subscribe_to_topic() -> mqtt.Client:
     client = mqtt.Client()
@@ -38,11 +37,10 @@ def subscribe_to_topic() -> mqtt.Client:
 def main():
     client: mqtt.Client = subscribe_to_topic()
     client.loop_start()
-
+    print("Started loop")
     try:
         while True:
-            scan_neighbours(10)
-            time.sleep(60)
+            time.sleep(5)
     except KeyboardInterrupt:
         print("\nExiting")
 

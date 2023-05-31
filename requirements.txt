@@ -1,2 +1,2 @@
-ping3==4.0.4
 paho-mqtt==1.6.1
+scapy==2.5.0
