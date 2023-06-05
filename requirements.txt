@@ -1,2 +1,0 @@
-paho-mqtt==1.6.1
-scapy==2.5.0
